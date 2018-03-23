@@ -78,12 +78,12 @@ namespace Change
             return existingChangeOption.Length > changeOption.Length + 1;
         }
 
-        private static int[] GetSortedCoins(int[] coins)
+        private static IEnumerable<int> GetSortedCoins(int[] coins)
         {
             var coinsList = coins.ToList();
             coinsList.Sort();
             coinsList.Reverse();
-            return coinsList.ToArray();
+            return coinsList;
         }
 
         private static void CheckForInvalidArguments(int target, int[] coins)
