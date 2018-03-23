@@ -18,32 +18,37 @@ namespace Change
 
         private static int[] CalculateMinimumChangeCoinsList(int target, int[] coins)
         {
-            var possibleChangeOptionsArray = SetUpInitialPossibleChangeOptionsArray(target);
+            var possibleChangeOptions = GeneratePossibleChangeOptions(target, coins);          
 
-            foreach (var coin in GetSortedCoins(coins))
-            {
-                ConsiderPossibleChangeOptionsForCoin(target, possibleChangeOptionsArray, coin);
-            }
-
-            if (ExactChangeCanBeGiven(possibleChangeOptionsArray, target))
-                return possibleChangeOptionsArray[target];
+            if (ExactChangeCanBeGiven(possibleChangeOptions, target))
+                return possibleChangeOptions.GetChangeOption(target).ChangeCoins.ToArray();
             else
                 throw new ArgumentException($"Cannot give exact change for {target}");
         }
 
-        private static bool ExactChangeCanBeGiven(int[][] possibleChangeOptions, int target)
+        private static ChangeOptionList GeneratePossibleChangeOptions(int target, int[] coins)
         {
-            return possibleChangeOptions[target] != null;
+            var possibleChangeOptions = SetUpInitialPossibleChangeOptions();
+            foreach (var coin in GetSortedCoins(coins))
+            {
+                ConsiderPossibleChangeOptionsForCoin(target, possibleChangeOptions, coin);
+            }
+            return possibleChangeOptions;
         }
 
-        private static int[][] SetUpInitialPossibleChangeOptionsArray(int target)
+        private static ChangeOptionList SetUpInitialPossibleChangeOptions()
         {
-            var possibleChangeOptionsArray = new int[target + 1][];
-            possibleChangeOptionsArray[0] = new int[0];
-            return possibleChangeOptionsArray;
+            var changeObjectList = new ChangeOptionList();
+            changeObjectList.AddChangeOption(0);
+            return changeObjectList;
         }
 
-        private static void ConsiderPossibleChangeOptionsForCoin(int target, int[][] possibleChangeOptions, int coin)
+        private static bool ExactChangeCanBeGiven(ChangeOptionList possibleChangeOptions, int target)
+        {
+            return possibleChangeOptions.ChangeOptionExistsForTargetValue(target);
+        }
+
+        private static void ConsiderPossibleChangeOptionsForCoin(int target, ChangeOptionList possibleChangeOptions, int coin)
         {
             for (int subTarget = coin; subTarget <= target; ++subTarget)
             {
@@ -51,38 +56,49 @@ namespace Change
 
                 if (ExistingChangeOptionShouldBeUpdated(possibleChangeOptions, subTarget, changeOption))
                 {
-                    possibleChangeOptions[subTarget] = AddCoinToChangeOption(coin, changeOption);
+                    UpdateChangeOption(possibleChangeOptions, subTarget, coin, changeOption);
                 }
             }
         }
 
-        private static int[] GetPossibleChangeOptionWhenCoinSubtractedFromSubTarget(int[][] possibleChangeOptions, int coin, int subtarget)
+        private static void UpdateChangeOption(ChangeOptionList possibleChangeOptions, int targetValue, int coin, ChangeOption existingChangeOption)
+        {
+            var newCoinList = CreateNewCoinList(coin, existingChangeOption);
+            if (!possibleChangeOptions.ChangeOptionExistsForTargetValue(targetValue))
+                possibleChangeOptions.AddChangeOption(targetValue, newCoinList);
+            else
+                possibleChangeOptions.GetChangeOption(targetValue).SetChangeCoins(newCoinList);
+        }
+
+        private static IEnumerable<int> CreateNewCoinList(int coin, ChangeOption existingChangeOption)
+        {
+            List<int> newCoinList = new List<int>();
+            newCoinList.AddRange(existingChangeOption.ChangeCoins);
+            newCoinList.Add(coin);
+            return newCoinList;
+        }
+
+        private static ChangeOption GetPossibleChangeOptionWhenCoinSubtractedFromSubTarget(ChangeOptionList possibleChangeOptions, int coin, int subtarget)
         {
             int targetAfterCoinStubtracted = subtarget - coin;
-            return possibleChangeOptions[targetAfterCoinStubtracted];
+            return possibleChangeOptions.GetChangeOption(targetAfterCoinStubtracted);
         }
 
-        private static int[] AddCoinToChangeOption(int coin, int[] changeOption)
-        {
-            return new[] { coin }.Concat(changeOption).ToArray();
-        }
-
-        private static bool ExistingChangeOptionShouldBeUpdated(int[][] existingChangeOptions, int subtarget, int[] newChangeOption)
+        private static bool ExistingChangeOptionShouldBeUpdated(ChangeOptionList existingChangeOptions, int subtarget, ChangeOption newChangeOption)
         {
             return newChangeOption != null &&
-                (existingChangeOptions[subtarget] == null || NewChangeOptionIsShorter(existingChangeOptions[subtarget], newChangeOption));
+                (!existingChangeOptions.ChangeOptionExistsForTargetValue(subtarget) || NewChangeOptionIsShorter(existingChangeOptions.GetChangeOption(subtarget), newChangeOption));
         }
 
-        private static bool NewChangeOptionIsShorter(int[] existingChangeOption, int[] changeOption)
+        private static bool NewChangeOptionIsShorter(ChangeOption existingChangeOption, ChangeOption changeOption)
         {
-            return existingChangeOption.Length > changeOption.Length + 1;
+            return existingChangeOption.ChangeCoins.Count > changeOption.ChangeCoins.Count + 1;
         }
 
         private static IEnumerable<int> GetSortedCoins(int[] coins)
         {
             var coinsList = coins.ToList();
             coinsList.Sort();
-            coinsList.Reverse();
             return coinsList;
         }
 
